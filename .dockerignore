@@ -1,0 +1,50 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Byte-compiled / optimized / DLL files
+*.so
+*.egg
+*.egg-info/
+*.eggs/
+
+# Distribution / packaging
+build/
+dist/
+*.tar.gz
+*.whl
+
+# Django specific
+*.log
+*.sqlite3
+media/
+staticfiles/
+*.pot
+*.pyc
+
+# Environment files
+.env
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.override.yml
+docker-compose.dev.yml
+
+# IDEs / editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo

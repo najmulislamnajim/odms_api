@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    container_name: odms_api
+    command: gunicorn odms_api.wsgi:application --bind 0.0.0.0:5001 --timeout 120
+
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    restart: always
