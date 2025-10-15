@@ -127,14 +127,27 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Logger setup
-# Ensure log directories exist
-os.makedirs(BASE_DIR / 'logs/delivery', exist_ok=True)
+# -------------------------------------------------------------
+# Rest of the settings are for Logging
+# -------------------------------------------------------------
 
-# Custom Date Formatter to format date and time into Dhaka timezone
+# ------------------------------
+# Ensure log directories exist
+# ------------------------------
+def ensure_log_dirs(apps):
+    for app in apps:
+        os.makedirs(BASE_DIR / 'logs' / app, exist_ok=True)
+
+apps = ['delivery', 'collection']  # Add new apps here
+ensure_log_dirs(apps)
+
+# ------------------------------
+# Custom Dhaka timezone formatter
+# ------------------------------
 class DhakaFormatter(logging.Formatter):
     def converter(self, timestamp):
-        dt = datetime.fromtimestamp(timestamp, pytz.timezone("Asia/Dhaka"))
+        tz = pytz.timezone("Asia/Dhaka")
+        dt = datetime.utcfromtimestamp(timestamp).replace(tzinfo=pytz.utc).astimezone(tz)
         return dt
 
     def formatTime(self, record, datefmt=None):
@@ -143,92 +156,103 @@ class DhakaFormatter(logging.Formatter):
             return dt.strftime(datefmt)
         return dt.isoformat()
 
-# Custom Filter to set log level
+# ------------------------------
+# Custom filter for log levels
+# ------------------------------
 class LevelFilter(logging.Filter):
-    def __init__(self, level):
+    def __init__(self, levelno):
         super().__init__()
-        self.level = level
-        
-    def filter(self, record):
-        record.levelname = self.level
-        return record.levelno == self.level
+        self.levelno = levelno
+        self.levelname = logging.getLevelName(levelno)
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'standard': {
-            '()': DhakaFormatter,
-            'format': '{levelname} {name} {lineno} {asctime} {filename} {funcName} {message}',
-            'style': '{',
-            'datefmt': '%d-%m-%Y %H:%M:%S'
-        },
-        'simple': {
-            '()': DhakaFormatter,
-            'format': '{levelname} {lineno} {asctime} {filename} {funcName} {message}',
-            'style': '{',
-            'datefmt': '%d-%m-%Y %H:%M:%S'
-        }    
+    def filter(self, record):
+        record.levelname = self.levelname
+        return record.levelno == self.levelno
+
+# ------------------------------
+# Common formatters and filters
+# ------------------------------
+formatters = {
+    'standard': {
+        '()': DhakaFormatter,
+        'format': '{levelname} {name} {lineno} {asctime} {filename} {funcName} {message}',
+        'style': '{',
+        'datefmt': '%d-%m-%Y %H:%M:%S'
     },
-    'filters':{
-        'info_only':{
-            '()': LevelFilter,
-            'level': logging.INFO,
-        },
-        'error_only':{
-            '()': LevelFilter,
-            'level': logging.ERROR,
-        },
-        'critical_only':{
-            '()': LevelFilter,
-            'level': logging.CRITICAL,
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-        'delivery_info': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs/delivery/info.log',
-            'formatter': 'standard',
-            'filters': ['info_only'],
-            'maxBytes': 1024 * 1024 * 5,  # 5 MB
-            'backupCount': 5,  
-        },
-        'delivery_error': {
-            'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs/delivery/error.log',
-            'formatter': 'standard',
-            'filters': ['error_only'],
-            'maxBytes': 1024 * 1024 * 5,  # 5 MB
-            'backupCount': 5, 
-        },
-        'delivery_critical': {
-            'level': 'CRITICAL',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs/delivery/critical.log',
-            'formatter': 'standard',
-            'filters': ['critical_only'],
-            'maxBytes': 1024 * 1024 * 5,  # 5 MB
-            'backupCount': 5, 
-        },
-        
-    },
-    'loggers':{
-        '': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False
-        },
-        'delivery_app': {
-            'handlers': ['delivery_info', 'delivery_error', 'delivery_critical'],
-            'level': 'INFO',
-            'propagate': False
-        },
+    'simple': {
+        '()': DhakaFormatter,
+        'format': '{levelname} {lineno} {asctime} {filename} {funcName} {message}',
+        'style': '{',
+        'datefmt': '%d-%m-%Y %H:%M:%S'
     }
 }
 
-runserver.default_port = "8001"
+filters = {
+    'info_only': {'()': LevelFilter, 'levelno': logging.INFO},
+    'error_only': {'()': LevelFilter, 'levelno': logging.ERROR},
+    'critical_only': {'()': LevelFilter, 'levelno': logging.CRITICAL},
+}
+
+# ------------------------------
+# Function to create app handlers
+# ------------------------------
+def create_app_handlers(app_name):
+    return {
+        f'{app_name}_info': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / app_name / 'info.log',
+            'formatter': 'standard',
+            'filters': ['info_only'],
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 5,
+        },
+        f'{app_name}_error': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / app_name / 'error.log',
+            'formatter': 'standard',
+            'filters': ['error_only'],
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 5,
+        },
+        f'{app_name}_critical': {
+            'level': 'CRITICAL',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / app_name / 'critical.log',
+            'formatter': 'standard',
+            'filters': ['critical_only'],
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 5,
+        },
+    }
+
+# ------------------------------
+# Build handlers dynamically
+# ------------------------------
+handlers = {'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'}}
+for app in apps:
+    handlers.update(create_app_handlers(app))
+
+# ------------------------------
+# Build loggers dynamically
+# ------------------------------
+loggers = {'': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}
+for app in apps:
+    loggers[f'{app}_app'] = {
+        'handlers': [f'{app}_info', f'{app}_error', f'{app}_critical'],
+        'level': 'INFO',
+        'propagate': False
+    }
+
+# ------------------------------
+# Final LOGGING config
+# ------------------------------
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': formatters,
+    'filters': filters,
+    'handlers': handlers,
+    'loggers': loggers
+}
