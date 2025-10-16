@@ -1,5 +1,5 @@
 import os, environ, logging, pytz
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from django.core.management.commands.runserver import Command as runserver
 
@@ -152,7 +152,7 @@ ensure_log_dirs(apps)
 class DhakaFormatter(logging.Formatter):
     def converter(self, timestamp):
         tz = pytz.timezone("Asia/Dhaka")
-        dt = datetime.utcfromtimestamp(timestamp).replace(tzinfo=pytz.utc).astimezone(tz)
+        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc).astimezone(tz)
         return dt
 
     def formatTime(self, record, datefmt=None):
