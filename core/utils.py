@@ -33,11 +33,14 @@ def execute_raw_query_with_columns(query, params=None):
     Returns:
         list: List of dictionaries containing the query results.
     """
-    with connection.cursor() as cursor:
-        cursor.execute(query, params)
-        columns = [col[0] for col in cursor.description]
-        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-    return results
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(query, params)
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return results, None
+    except Exception as e:
+        return [], e
 
 def execute_update_query(query, params=None):
     """Executes an UPDATE/INSERT/DELETE and returns affected rows count."""
